@@ -27,9 +27,11 @@
     #define ADDRESS_OSTitle_main_entry_ptr              0x1005CB00
     #define ADDRESS_main_entry_hook                     0x0101C15C
 
-    #define KERN_SYSCALL_TBL_5                          0xFFEA9520 // works with browser
-
-    #define PREP_TITLE_HOOK_ADDR                        0xFFF18534
+    #define KERN_SYSCALL_TBL_1                          0xFFE84C70 // unknown
+    #define KERN_SYSCALL_TBL_2                          0xFFE85070 // works with games
+    #define KERN_SYSCALL_TBL_3                          0xFFE85470 // works with loader
+    #define KERN_SYSCALL_TBL_4                          0xFFEA9120 // works with home menu
+    #define KERN_SYSCALL_TBL_5                          0xFFEA9520 // works with browser (previously KERN_SYSCALL_TBL)
 #elif ( (VER == 400) || (VER == 410) )
     #define ADDRESS_OSTitle_main_entry_ptr              0x1005A8C0
     #define ADDRESS_main_entry_hook                     0x0101BD4C
