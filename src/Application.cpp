@@ -197,20 +197,4 @@ void Application::executeThread(void)
     delete mainWindow;
     delete fontSystem;
     delete video;
-
-    //!------------------------------------------------------------------------------------------------------------
-    //! TODO: This is ugly and I don't really like it but I didn't find a better way for this to work.
-    //! It seems its necessary. to make one frame with max resolution to fix console application display ratio.
-    //!------------------------------------------------------------------------------------------------------------
-    video = new CVideo(GX2_TV_SCAN_MODE_1080P, GX2_DRC_SINGLE);
-    video->prepareDrcRendering();
-    video->drcDrawDone();
-    video->prepareTvRendering();
-    video->tvDrawDone();
-    video->tvEnable(true);
-    video->drcEnable(true);
-    video->waitForVSync();
-    video->tvEnable(false);
-    video->drcEnable(false);
-    delete video;
 }
