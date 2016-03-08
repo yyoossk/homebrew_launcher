@@ -35,6 +35,11 @@
 #elif ( (VER == 400) || (VER == 410) )
     #define ADDRESS_OSTitle_main_entry_ptr              0x1005A8C0
     #define ADDRESS_main_entry_hook                     0x0101BD4C
+
+    #define KERN_SYSCALL_TBL_1                          0xFFE84C90
+    #define KERN_SYSCALL_TBL_2                          0xFFE85090
+    #define KERN_SYSCALL_TBL_3                          0xFFE85C90
+    #define KERN_SYSCALL_TBL_4                          0xFFE85490
     #define KERN_SYSCALL_TBL_5                          0xFFE85890 // works with browser
 #endif // VER
 
