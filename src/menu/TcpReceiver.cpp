@@ -9,6 +9,7 @@
 #include "fs/CFile.hpp"
 #include "utils/logger.h"
 #include "utils/StringTools.h"
+#include "utils/net.h"
 
 TcpReceiver::TcpReceiver(int port)
     : GuiFrame(0, 0)
@@ -96,13 +97,14 @@ int TcpReceiver::loadToMemory(s32 clientSocket, u32 ipAddress)
     u32 fileSize = 0;
     u32 fileSizeUnc = 0;
     unsigned char haxx[8];
+    memset(haxx, 0, sizeof(haxx));
     //skip haxx
-    recv(clientSocket, haxx, 8, 0);
-    recv(clientSocket, &fileSize, 4, 0);
+    recvwait(clientSocket, haxx, sizeof(haxx));
+    recvwait(clientSocket, (unsigned char*)&fileSize, sizeof(fileSize));
 
     if (haxx[4] > 0 || haxx[5] > 4)
     {
-        recv(clientSocket, &fileSizeUnc, 4, 0); // Compressed protocol, read another 4 bytes
+        recvwait(clientSocket, (unsigned char*)&fileSizeUnc, sizeof(fileSizeUnc)); // Compressed protocol, read another 4 bytes
     }
 
     u32 bytesRead = 0;
