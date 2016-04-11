@@ -88,6 +88,12 @@
     dcbf 0, r3                  ;   \
     icbi 0, r3                  ;
 
+     .globl SC_0x25_KernelCopyData
+SC_0x25_KernelCopyData:
+    li r0, 0x2500
+    sc
+    blr
+
      .globl Syscall_0x36
 Syscall_0x36:
     mflr r0
