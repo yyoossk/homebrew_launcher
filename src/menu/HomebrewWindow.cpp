@@ -60,6 +60,10 @@ HomebrewWindow::HomebrewWindow(int w, int h)
         //!if(strcasecmp(dirList.GetFilename(i), "homebrew_launcher.elf") == 0)
         //!    continue;
 
+        //! skip hidden linux and mac files
+        if(dirList.GetFilename(i)[0] == '.' || dirList.GetFilename(i)[0] == '_')
+            continue;
+
         int idx = homebrewButtons.size();
         homebrewButtons.resize(homebrewButtons.size() + 1);
 
