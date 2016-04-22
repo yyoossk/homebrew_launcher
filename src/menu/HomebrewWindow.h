@@ -50,6 +50,7 @@ private:
     GuiImage arrowLeftImage;
     GuiButton arrowRightButton;
     GuiButton arrowLeftButton;
+    GuiText hblVersionText;
 
     typedef struct
     {
