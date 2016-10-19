@@ -10,7 +10,7 @@ extern "C" {
 #define HBL_VERSION                 "v1.3"
 
 #define CAFE_OS_SD_PATH             "/vol/external01"
-#define SD_PATH                     "sd:"
+#define SD_PATH                     "fs:"
 #define WIIU_PATH                   "/wiiu"
 
 #ifndef MEM_BASE

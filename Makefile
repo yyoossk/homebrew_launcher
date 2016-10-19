@@ -2,192 +2,107 @@
 # Clear the implicit built in rules
 #---------------------------------------------------------------------------------
 .SUFFIXES:
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(DEVKITPPC)),)
-$(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>devkitPPC")
+
+ifeq ($(strip $(WUT_ROOT)),)
+$(error "Please ensure WUT_ROOT is in your environment.")
 endif
-ifeq ($(strip $(DEVKITPRO)),)
-$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPRO")
+
+ifeq ($(findstring CYGWIN,$(shell uname -s)),CYGWIN)
+ROOT := $(shell cygpath -w ${CURDIR})
+WUT_ROOT := $(shell cygpath -w ${WUT_ROOT})
+else
+ROOT := $(CURDIR)
 endif
-export PATH			:=	$(DEVKITPPC)/bin:$(PORTLIBS)/bin:$(PATH)
-export LIBOGC_INC	:=	$(DEVKITPRO)/libogc/include
-export LIBOGC_LIB	:=	$(DEVKITPRO)/libogc/lib/wii
+
+
 export PORTLIBS		:=	$(DEVKITPRO)/portlibs/ppc
 
-PREFIX	:=	powerpc-eabi-
+include $(WUT_ROOT)/rules/rpl.mk
 
-export AS	:=	$(PREFIX)as
-export CC	:=	$(PREFIX)gcc
-export CXX	:=	$(PREFIX)g++
-export AR	:=	$(PREFIX)ar
-export OBJCOPY	:=	$(PREFIX)objcopy
+AS      := $(PREFIX)as
 
-#---------------------------------------------------------------------------------
-# TARGET is the name of the output
-# BUILD is the directory where object files & intermediate files will be placed
-# SOURCES is a list of directories containing source code
-# INCLUDES is a list of directories containing extra header files
-#---------------------------------------------------------------------------------
-TARGET		:=	homebrew_launcher
-BUILD		:=	build
-BUILD_DBG	:=	$(TARGET)_dbg
-SOURCES		:=	src \
-				src/dynamic_libs \
-				src/fs \
-				src/game \
-				src/gui \
-				src/kernel \
-				src/loader \
-				src/menu \
-				src/network \
-				src/patcher \
-				src/resources \
-				src/settings \
-				src/sounds \
-				src/system \
-				src/utils \
-				src/video \
-				src/video/shaders
-DATA		:=	data \
-				data/images \
-				data/fonts \
-				data/sounds
+TARGET   := $(notdir $(CURDIR))
+BUILD    := build
+SOURCE   := src \
+			src/dynamic_libs \
+			src/fs \
+			src/game \
+			src/gui \
+			src/kernel \
+			src/loader \
+			src/menu \
+			src/network \
+			src/patcher \
+			src/resources \
+			src/settings \
+			src/sounds \
+			src/system \
+			src/utils \
+			src/video \
+			src/video/shaders
+INCLUDE  := src
+DATA     := data \
+			data/images \
+			data/fonts \
+			data/sounds
+LIBS     := -lgcc -lcrt -lcoreinit -lproc_ui -lnsysnet -lsndcore2 -lvpad -lgx2 -lgd -lpng -lz -lfreetype -lmad -lvorbisidec
 
-INCLUDES	:=  src
+CFLAGS   += -O3 -std=gnu11 -Wall -Wextra -Wno-unused-parameter -Wno-strict-aliasing
+CXXFLAGS += -O3 -std=gnu++11 -Wall -Wextra -Wno-unused-parameter -Wno-strict-aliasing
 
-#---------------------------------------------------------------------------------
-# options for code generation
-#---------------------------------------------------------------------------------
-CFLAGS	:=  -std=gnu11 -mrvl -mcpu=750 -meabi -mhard-float -ffast-math \
-		    -O3 -Wall -Wextra -Wno-unused-parameter -Wno-strict-aliasing $(INCLUDE)
-CXXFLAGS := -std=gnu++11 -mrvl -mcpu=750 -meabi -mhard-float -ffast-math \
-		    -O3 -Wall -Wextra -Wno-unused-parameter -Wno-strict-aliasing $(INCLUDE)
-ASFLAGS	:= -mregnames
-LDFLAGS	:= -nostartfiles -Wl,-Map,$(notdir $@).map,-wrap,malloc,-wrap,free,-wrap,memalign,-wrap,calloc,-wrap,realloc,-wrap,malloc_usable_size,-wrap,_malloc_r,-wrap,_free_r,-wrap,_realloc_r,-wrap,_calloc_r,-wrap,_memalign_r,-wrap,_malloc_usable_size_r,-wrap,valloc,-wrap,_valloc_r,-wrap,_pvalloc_r,--gc-sections
-
-#---------------------------------------------------------------------------------
-Q := @
-MAKEFLAGS += --no-print-directory
-#---------------------------------------------------------------------------------
-# any extra libraries we wish to link with the project
-#---------------------------------------------------------------------------------
-LIBS	:= -lgcc -lgd -lpng -lz -lfreetype -lmad -lvorbisidec
-
-#---------------------------------------------------------------------------------
-# list of directories containing libraries, this must be the top level containing
-# include and lib
-#---------------------------------------------------------------------------------
-LIBDIRS	:=	$(CURDIR)	\
-			$(DEVKITPPC)/lib  \
-			$(DEVKITPPC)/lib/gcc/powerpc-eabi/4.8.2
-
-
-#---------------------------------------------------------------------------------
-# no real need to edit anything past this point unless you need to add additional
-# rules for different file extensions
-#---------------------------------------------------------------------------------
 ifneq ($(BUILD),$(notdir $(CURDIR)))
-#---------------------------------------------------------------------------------
-export PROJECTDIR := $(CURDIR)
-export OUTPUT	:=	$(CURDIR)/$(TARGETDIR)/$(TARGET)
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
-export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
-#---------------------------------------------------------------------------------
-# automatically build a list of object files for our project
-#---------------------------------------------------------------------------------
-FILELIST	:=	$(shell bash ./filelist.sh)
-CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-sFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.S)))
+export OUTPUT   := $(ROOT)/$(TARGET)
+export VPATH    := $(foreach dir,$(SOURCE),$(ROOT)/$(dir)) \
+                   $(foreach dir,$(DATA),$(ROOT)/$(dir))
+export BUILDDIR := $(ROOT)
+export DEPSDIR  := $(BUILDDIR)
+
+CFILES    := $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.c)))
+CXXFILES  := $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.cpp)))
+SFILES    := $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.S)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
-TTFFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.ttf)))
-PNGFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.png)))
 
-#---------------------------------------------------------------------------------
-# use CXX for linking C++ projects, CC for standard C
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(CPPFILES)),)
-	export LD	:=	$(CC)
+ifeq ($(strip $(CXXFILES)),)
+export LD := $(CC)
 else
-	export LD	:=	$(CXX)
+export LD := $(CXX)
 endif
 
-export OFILES	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) \
-					$(sFILES:.s=.o) $(SFILES:.S=.o) \
-					$(PNGFILES:.png=.png.o) $(addsuffix .o,$(BINFILES))
+export OFILES := $(CFILES:.c=.o) \
+                 $(CXXFILES:.cpp=.o) \
+                 $(SFILES:.S=.o) \
+				 $(addsuffix .o,$(BINFILES))
 
-#---------------------------------------------------------------------------------
-# build a list of include paths
-#---------------------------------------------------------------------------------
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-					-I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC) \
-					-I$(PORTLIBS)/include -I$(PORTLIBS)/include/freetype2
-
+export INCLUDES := $(foreach dir,$(INCLUDE),-I$(ROOT)/$(dir)) \
+                   -I$(ROOT)/$(BUILD) \
+                   -I$(PORTLIBS)/include -I$(PORTLIBS)/include/freetype2
 #---------------------------------------------------------------------------------
 # build a list of library paths
 #---------------------------------------------------------------------------------
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
-					-L$(LIBOGC_LIB) -L$(PORTLIBS)/lib
+export LIB_DIRS	:=  $(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
+                    -L$(PORTLIBS)/lib
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
-.PHONY: $(BUILD) clean install
+.PHONY: $(BUILD) clean
 
-#---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(ROOT)/Makefile
 
-#---------------------------------------------------------------------------------
 clean:
-	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).bin $(BUILD_DBG).elf
+	@echo "[RM]  $(notdir $(OUTPUT))"
+	@rm -rf $(BUILD) $(OUTPUT).elf $(OUTPUT).rpx $(OUTPUT).a
 
-#---------------------------------------------------------------------------------
 else
 
-DEPENDS	:=	$(OFILES:.o=.d)
+# workaround as wut overwrites the LIBPATHS with its rules -> not cool
+export LIBPATHS := $(LIBPATHS) $(LIB_DIRS)
 
-#---------------------------------------------------------------------------------
-# main targets
-#---------------------------------------------------------------------------------
-$(OUTPUT).elf:  $(OFILES)
+DEPENDS	:= $(OFILES:.o=.d)
 
-#---------------------------------------------------------------------------------
-# This rule links in binary data with the .jpg extension
-#---------------------------------------------------------------------------------
-%.elf: link.ld $(OFILES)
-	@echo "linking ... $(TARGET).elf"
-	$(Q)$(LD) -n -T $^ $(LDFLAGS) -o ../$(BUILD_DBG).elf  $(LIBPATHS) $(LIBS)
-	$(Q)$(OBJCOPY) -S -R .comment -R .gnu.attributes ../$(BUILD_DBG).elf $@
+$(OUTPUT).rpx: $(OUTPUT).elf
+$(OUTPUT).elf: $(OFILES)
 
-../data/loader.bin:
-	$(MAKE) -C ../loader clean
-	$(MAKE) -C ../loader
-#---------------------------------------------------------------------------------
-%.a:
-#---------------------------------------------------------------------------------
-	@echo $(notdir $@)
-	@rm -f $@
-	@$(AR) -rc $@ $^
-
-#---------------------------------------------------------------------------------
-%.o: %.cpp
-	@echo $(notdir $<)
-	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -c $< -o $@ $(ERROR_FILTER)
-
-#---------------------------------------------------------------------------------
-%.o: %.c
-	@echo $(notdir $<)
-	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@ $(ERROR_FILTER)
-
-#---------------------------------------------------------------------------------
-%.o: %.S
-	@echo $(notdir $<)
-	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d -x assembler-with-cpp $(ASFLAGS) -c $< -o $@ $(ERROR_FILTER)
 
 #---------------------------------------------------------------------------------
 %.png.o : %.png

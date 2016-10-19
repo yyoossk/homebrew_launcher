@@ -3,8 +3,8 @@
 
 #include <vector>
 #include <string>
-#include <gctypes.h>
 
+#include "common/types.h"
 #include "ProgressWindow.h"
 #include "system/CThread.h"
 #include "gui/sigslot.h"
