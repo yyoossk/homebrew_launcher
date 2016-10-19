@@ -14,14 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  ****************************************************************************/
+#include <coreinit/core.h>
+#include <coreinit/foreground.h>
+#include <proc_ui/procui.h>
 #include "Application.h"
 #include "common/common.h"
-#include "dynamic_libs/os_functions.h"
 #include "gui/FreeTypeGX.h"
 #include "gui/VPadController.h"
 #include "gui/WPadController.h"
 #include "resources/Resources.h"
 #include "sounds/SoundHandler.hpp"
+#include "system/memory.h"
 #include "utils/logger.h"
 
 Application *Application::applicationInstance = NULL;
@@ -32,6 +35,7 @@ Application::Application()
 	, bgMusic(NULL)
 	, video(NULL)
     , mainWindow(NULL)
+    , fontSystem(NULL)
     , exitCode(EXIT_RELAUNCH_ON_LOAD)
 {
     controller[0] = new VPadController(GuiTrigger::CHANNEL_1);
@@ -41,7 +45,7 @@ Application::Application()
     controller[4] = new WPadController(GuiTrigger::CHANNEL_5);
 
     //! load resources
-    Resources::LoadFiles("sd:/wiiu/apps/homebrew_launcher/resources");
+    Resources::LoadFiles("fs:/wiiu/apps/homebrew_launcher/resources");
 
     //! create bgMusic
     bgMusic = new GuiSound(Resources::GetFile("bgMusic.ogg"), Resources::GetFileSize("bgMusic.ogg"));
@@ -50,6 +54,8 @@ Application::Application()
     bgMusic->SetVolume(50);
 
 	exitApplication = false;
+
+    ProcUIInit(OSSavesDone_ReadyToRelease);
 }
 
 Application::~Application()
@@ -71,6 +77,8 @@ Application::~Application()
 
     log_printf("Stop sound handler\n");
 	SoundHandler::DestroyInstance();
+
+    ProcUIShutdown();
 }
 
 int Application::exec()
@@ -98,9 +106,9 @@ void Application::fadeOut()
 	    video->prepareDrcRendering();
 	    mainWindow->drawDrc(video);
 
-        GX2SetDepthOnlyControl(GX2_DISABLE, GX2_DISABLE, GX2_COMPARE_ALWAYS);
+        GX2SetDepthOnlyControl(GX2_DISABLE, GX2_DISABLE, GX2_COMPARE_FUNC_ALWAYS);
         fadeOut.draw(video);
-        GX2SetDepthOnlyControl(GX2_ENABLE, GX2_ENABLE, GX2_COMPARE_LEQUAL);
+        GX2SetDepthOnlyControl(GX2_ENABLE, GX2_ENABLE, GX2_COMPARE_FUNC_LEQUAL);
 
 	    video->drcDrawDone();
 
@@ -109,9 +117,9 @@ void Application::fadeOut()
 
 	    mainWindow->drawTv(video);
 
-        GX2SetDepthOnlyControl(GX2_DISABLE, GX2_DISABLE, GX2_COMPARE_ALWAYS);
+        GX2SetDepthOnlyControl(GX2_DISABLE, GX2_DISABLE, GX2_COMPARE_FUNC_ALWAYS);
         fadeOut.draw(video);
-        GX2SetDepthOnlyControl(GX2_ENABLE, GX2_ENABLE, GX2_COMPARE_LEQUAL);
+        GX2SetDepthOnlyControl(GX2_ENABLE, GX2_ENABLE, GX2_COMPARE_FUNC_LEQUAL);
 
 	    video->tvDrawDone();
 
@@ -131,27 +139,84 @@ void Application::fadeOut()
     video->drcEnable(false);
 }
 
+bool Application::procUI(void)
+{
+    bool executeProcess = false;
+
+    switch(ProcUIProcessMessages(true))
+    {
+    case PROCUI_STATUS_EXITING:
+    {
+        quit(EXIT_RELAUNCH_ON_LOAD);
+        break;
+    }
+    case PROCUI_STATUS_RELEASE_FOREGROUND:
+    {
+        if(video != NULL)
+        {
+            // we can turn of the screen but we don't need to and it will display the last image
+            //video->tvEnable(false);
+            //video->drcEnable(false);
+
+            log_printf("delete fontSystem\n");
+            delete fontSystem;
+            fontSystem = NULL;
+
+            log_printf("delete video\n");
+            delete video;
+            video = NULL;
+
+            log_printf("deinitialze memory\n");
+            memoryRelease();
+            ProcUIDrawDoneRelease();
+        }
+        break;
+    }
+    case PROCUI_STATUS_IN_FOREGROUND:
+    {
+        if(video == NULL)
+        {
+            log_printf("initialze memory\n");
+            memoryInitialize();
+
+            log_printf("Initialize video\n");
+            video = new CVideo(GX2_TV_SCAN_MODE_720P, GX2_DRC_RENDER_MODE_SINGLE);
+            log_printf("Video size %i x %i\n", video->getTvWidth(), video->getTvHeight());
+
+            //! setup default Font
+            log_printf("Initialize main font system %p\n", Resources::GetFile("font.ttf"));
+            FreeTypeGX *fontSystem = new FreeTypeGX(Resources::GetFile("font.ttf"), Resources::GetFileSize("font.ttf"), true);
+            GuiText::setPresetFont(fontSystem);
+
+            if(mainWindow == NULL)
+            {
+                log_printf("Initialize main window\n");
+                mainWindow = new MainWindow(video->getTvWidth(), video->getTvHeight());
+            }
+
+        }
+        executeProcess = true;
+        break;
+    }
+    case PROCUI_STATUS_IN_BACKGROUND:
+    default:
+        break;
+    }
+
+    return executeProcess;
+}
+
+
 void Application::executeThread(void)
 {
-    log_printf("Initialize video\n");
-    video = new CVideo(GX2_TV_SCAN_MODE_720P, GX2_DRC_SINGLE);
-
-    log_printf("Video size %i x %i\n", video->getTvWidth(), video->getTvHeight());
-
-    //! setup default Font
-    log_printf("Initialize main font system\n");
-    FreeTypeGX *fontSystem = new FreeTypeGX(Resources::GetFile("font.ttf"), Resources::GetFileSize("font.ttf"), true);
-    GuiText::setPresetFont(fontSystem);
-
-    log_printf("Initialize main window\n");
-
-    mainWindow = new MainWindow(video->getTvWidth(), video->getTvHeight());
-
     log_printf("Entering main loop\n");
 
     //! main GX2 loop (60 Hz cycle with max priority on core 1)
 	while(!exitApplication)
 	{
+	    if(procUI() == false)
+	        continue;
+
 	    //! Read out inputs
 	    for(int i = 0; i < 5; i++)
         {
@@ -192,9 +257,19 @@ void Application::executeThread(void)
         AsyncDeleter::triggerDeleteProcess();
 	}
 
-	fadeOut();
 
+    log_printf("delete mainWindow\n");
     delete mainWindow;
+    mainWindow = NULL;
+
+    log_printf("delete fontSystem\n");
     delete fontSystem;
+    fontSystem = NULL;
+
+    log_printf("delete video\n");
     delete video;
+    video = NULL;
+
+    log_printf("deinitialze memory\n");
+    memoryRelease();
 }

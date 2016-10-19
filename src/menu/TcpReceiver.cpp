@@ -2,14 +2,15 @@
 #include <string>
 #include <string.h>
 #include <zlib.h>
+#include <nsysnet/socket.h>
 
 #include "TcpReceiver.h"
-#include "dynamic_libs/os_functions.h"
-#include "dynamic_libs/socket_functions.h"
 #include "fs/CFile.hpp"
 #include "utils/logger.h"
 #include "utils/StringTools.h"
 #include "utils/net.h"
+
+u32 __CODE_END = 0x0;
 
 TcpReceiver::TcpReceiver(int port)
     : GuiFrame(0, 0)
@@ -68,7 +69,7 @@ void TcpReceiver::executeThread()
 	}
 
 	struct sockaddr_in clientAddr;
-	s32 addrlen = sizeof(struct sockaddr);
+	socklen_t addrlen = sizeof(struct sockaddr);
 
     while(!exitRequested)
     {

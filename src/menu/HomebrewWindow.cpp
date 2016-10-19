@@ -51,12 +51,13 @@ HomebrewWindow::HomebrewWindow(int w, int h)
     currentLeftPosition = 0;
     listOffset = 0;
 
-    DirList dirList("sd:/wiiu/apps", ".elf", DirList::Files | DirList::CheckSubfolders);
+    DirList dirList("fs:/", NULL, DirList::Files | DirList::CheckSubfolders, 1);
 
     dirList.SortList();
 
     for(int i = 0; i < dirList.GetFilecount(); i++)
     {
+        log_printf("%i: %s\n", i, dirList.GetFilepath(i));
         //! skip our own application in the listing
         //!if(strcasecmp(dirList.GetFilename(i), "homebrew_launcher.elf") == 0)
         //!    continue;
@@ -104,8 +105,8 @@ HomebrewWindow::HomebrewWindow(int w, int h)
         const char *cpName = xmlReadSuccess ? metaXml.GetName() : homebrewButtons[idx].execPath.c_str();
         const char *cpDescription = xmlReadSuccess ? metaXml.GetShortDescription() : "";
 
-        if(strncmp(cpName, "sd:/wiiu/apps/", strlen("sd:/wiiu/apps/")) == 0)
-           cpName += strlen("sd:/wiiu/apps/");
+        if(strncmp(cpName, "fs:/wiiu/apps/", strlen("fs:/wiiu/apps/")) == 0)
+           cpName += strlen("fs:/wiiu/apps/");
 
         homebrewButtons[idx].nameLabel = new GuiText(cpName, 32, glm::vec4(1.0f));
         homebrewButtons[idx].nameLabel->setAlignment(ALIGN_LEFT | ALIGN_MIDDLE);

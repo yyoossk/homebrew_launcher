@@ -21,6 +21,9 @@
 #include "video/CVideo.h"
 #include "system/CThread.h"
 
+// forward declaration
+class FreeTypeGX;
+
 class Application : public CThread
 {
 public:
@@ -59,6 +62,8 @@ private:
     Application();
     virtual ~Application();
 
+    bool procUI(void);
+
     static Application *applicationInstance;
     static bool exitApplication;
 
@@ -67,6 +72,7 @@ private:
     GuiSound *bgMusic;
     CVideo *video;
     MainWindow *mainWindow;
+    FreeTypeGX *fontSystem;
     GuiController *controller[5];
     int exitCode;
 };

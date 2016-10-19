@@ -1,4 +1,4 @@
-#include "dynamic_libs/socket_functions.h"
+#include <nsysnet/socket.h>
 
 int recvwait(int sock, unsigned char *buffer, int len)
 {

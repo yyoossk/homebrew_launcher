@@ -21,7 +21,6 @@
 #include "GuiImage.h"
 #include "system/CThread.h"
 #include "system/CMutex.h"
-#include "dynamic_libs/os_functions.h"
 
 class GuiImageAsync : public GuiImage
 {
