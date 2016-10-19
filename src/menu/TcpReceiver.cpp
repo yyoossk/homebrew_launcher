@@ -2,20 +2,21 @@
 #include <string>
 #include <string.h>
 #include <zlib.h>
+#include <nsysnet/socket.h>
 
 #include "TcpReceiver.h"
-#include "HomebrewMemory.h"
-#include "dynamic_libs/os_functions.h"
-#include "dynamic_libs/socket_functions.h"
 #include "fs/CFile.hpp"
 #include "utils/logger.h"
 #include "utils/StringTools.h"
 #include "utils/net.h"
 
+u32 __CODE_END = 0x0;
+
 TcpReceiver::TcpReceiver(int port)
     : GuiFrame(0, 0)
     , CThread(CThread::eAttributeAffCore0 | CThread::eAttributePinnedAff)
     , exitRequested(false)
+    , loadAddress(0)
     , serverPort(port)
     , serverSocket(-1)
     , progressWindow("Receiving file...")
@@ -23,6 +24,10 @@ TcpReceiver::TcpReceiver(int port)
     width = progressWindow.getWidth();
     height = progressWindow.getHeight();
     append(&progressWindow);
+
+    u32 ApplicationMemoryEnd = getApplicationEndAddr();
+
+    loadAddress = (unsigned char*)ApplicationMemoryEnd;
     resumeThread();
 }
 
@@ -63,7 +68,7 @@ void TcpReceiver::executeThread()
 	}
 
 	struct sockaddr_in clientAddr;
-	s32 addrlen = sizeof(struct sockaddr);
+	socklen_t addrlen = sizeof(struct sockaddr);
 
     while(!exitRequested)
     {
@@ -112,30 +117,32 @@ int TcpReceiver::loadToMemory(s32 clientSocket, u32 ipAddress)
 
     log_printf("transfer start\n");
 
-    unsigned char* loadAddress = (unsigned char*)memalign(0x40, fileSize);
-    if(!loadAddress)
-    {
-        progressWindow.setTitle("Not enough memory");
-        sleep(1);
-        return NOT_ENOUGH_MEMORY;
-    }
+    std::string strBuffer;
+    strBuffer.resize(0x1000);
 
     // Copy rpl in memory
     while(bytesRead < fileSize)
     {
         progressWindow.setProgress(100.0f * (f32)bytesRead / (f32)fileSize);
 
-        u32 blockSize = 0x1000;
+        u32 blockSize = strBuffer.size();
         if(blockSize > (fileSize - bytesRead))
             blockSize = fileSize - bytesRead;
 
-        int ret = recv(clientSocket, loadAddress + bytesRead, blockSize, 0);
+        if((u32)(loadAddress + bytesRead + blockSize) > 0x01000000)
+        {
+            log_printf("File ist too big\n");
+            return NOT_ENOUGH_MEMORY;
+        }
+
+        int ret = recv(clientSocket, &strBuffer[0], blockSize, 0);
         if(ret <= 0)
         {
             log_printf("Failure on reading file\n");
             break;
         }
 
+        memcpy(loadAddress + bytesRead, &strBuffer[0], ret);
         bytesRead += ret;
     }
 
@@ -143,20 +150,13 @@ int TcpReceiver::loadToMemory(s32 clientSocket, u32 ipAddress)
 
     if(bytesRead != fileSize)
     {
-        free(loadAddress);
         log_printf("File loading not finished, %i of %i bytes received\n", bytesRead, fileSize);
-        progressWindow.setTitle("Receive incomplete");
-        sleep(1);
         return FILE_READ_ERROR;
     }
-
-    int res = -1;
 
 	// Do we need to unzip this thing?
 	if (haxx[4] > 0 || haxx[5] > 4)
 	{
-        unsigned char* inflatedData = NULL;
-
 		// We need to unzip...
 		if (loadAddress[0] == 'P' && loadAddress[1] == 'K' && loadAddress[2] == 0x03 && loadAddress[3] == 0x04)
 		{
@@ -164,14 +164,8 @@ int TcpReceiver::loadToMemory(s32 clientSocket, u32 ipAddress)
 		    //! mhmm this is incorrect, it has to parse the zip
 
             // Section is compressed, inflate
-            inflatedData = (unsigned char*)malloc(fileSizeUnc);
-            if(!inflatedData)
-            {
-                free(loadAddress);
-                progressWindow.setTitle("Not enough memory");
-                sleep(1);
-                return NOT_ENOUGH_MEMORY;
-            }
+            std::string inflatedData;
+            inflatedData.resize(fileSizeUnc);
 
             int ret = 0;
             z_stream s;
@@ -183,13 +177,7 @@ int TcpReceiver::loadToMemory(s32 clientSocket, u32 ipAddress)
 
             ret = inflateInit(&s);
             if (ret != Z_OK)
-            {
-                free(loadAddress);
-                free(inflatedData);
-                progressWindow.setTitle("Uncompress failure");
-                sleep(1);
                 return FILE_READ_ERROR;
-            }
 
             s.avail_in = fileSize;
             s.next_in = (Bytef *)(&loadAddress[0]);
@@ -199,62 +187,34 @@ int TcpReceiver::loadToMemory(s32 clientSocket, u32 ipAddress)
 
             ret = inflate(&s, Z_FINISH);
             if (ret != Z_OK && ret != Z_STREAM_END)
-            {
-                free(loadAddress);
-                free(inflatedData);
-                progressWindow.setTitle("Uncompress failure");
-                sleep(1);
                 return FILE_READ_ERROR;
-            }
 
             inflateEnd(&s);
+
+            if(fileSizeUnc > (0x01000000 - (u32)loadAddress))
+                return FILE_READ_ERROR;
+
+            memcpy(loadAddress, &inflatedData[0], fileSizeUnc);
             fileSize = fileSizeUnc;
 		}
 		else
         {
             // Section is compressed, inflate
-            inflatedData = (unsigned char*)malloc(fileSizeUnc);
-            if(!inflatedData)
-            {
-                free(loadAddress);
-                progressWindow.setTitle("Not enough memory");
-                sleep(1);
-                return NOT_ENOUGH_MEMORY;
-            }
+            std::string inflatedData;
+            inflatedData.resize(fileSizeUnc);
 
 			uLongf f = fileSizeUnc;
 			int result = uncompress((Bytef*)&inflatedData[0], &f, (Bytef*)loadAddress, fileSize);
 			if(result != Z_OK)
             {
                 log_printf("uncompress failed %i\n", result);
-                progressWindow.setTitle("Uncompress failure");
-                sleep(1);
                 return FILE_READ_ERROR;
             }
 
 			fileSizeUnc = f;
+            memcpy(loadAddress, &inflatedData[0], fileSizeUnc);
             fileSize = fileSizeUnc;
         }
-
-        free(loadAddress);
-
-        HomebrewInitMemory();
-        res = HomebrewCopyMemory(inflatedData, fileSize);
-        free(inflatedData);
 	}
-	else
-    {
-        HomebrewInitMemory();
-        res = HomebrewCopyMemory(loadAddress, fileSize);
-        free(loadAddress);
-    }
-
-    if(res < 0)
-    {
-        progressWindow.setTitle("Not enough memory");
-        sleep(1);
-        return NOT_ENOUGH_MEMORY;
-    }
-
     return fileSize;
 }
