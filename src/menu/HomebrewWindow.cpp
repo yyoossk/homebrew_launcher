@@ -21,7 +21,6 @@
 #include "fs/fs_utils.h"
 #include "system/AsyncDeleter.h"
 #include "utils/HomebrewXML.h"
-#include "utils/utils.h"
 #include "HomebrewLaunchWindow.h"
 
 #define DEFAULT_WIILOAD_PORT        4299
@@ -52,15 +51,16 @@ HomebrewWindow::HomebrewWindow(int w, int h)
     currentLeftPosition = 0;
     listOffset = 0;
 
-    DirList dirList("sd:/wiiu/apps", ".elf,.rpx", DirList::Files | DirList::CheckSubfolders, 1);
+    DirList dirList("fs:/", NULL, DirList::Files | DirList::CheckSubfolders, 1);
 
     dirList.SortList();
 
     for(int i = 0; i < dirList.GetFilecount(); i++)
     {
+        log_printf("%i: %s\n", i, dirList.GetFilepath(i));
         //! skip our own application in the listing
-        if(strcasecmp(dirList.GetFilename(i), "homebrew_launcher.elf") == 0)
-            continue;
+        //!if(strcasecmp(dirList.GetFilename(i), "homebrew_launcher.elf") == 0)
+        //!    continue;
 
         //! skip hidden linux and mac files
         if(dirList.GetFilename(i)[0] == '.' || dirList.GetFilename(i)[0] == '_')
@@ -105,8 +105,8 @@ HomebrewWindow::HomebrewWindow(int w, int h)
         const char *cpName = xmlReadSuccess ? metaXml.GetName() : homebrewButtons[idx].execPath.c_str();
         const char *cpDescription = xmlReadSuccess ? metaXml.GetShortDescription() : "";
 
-        if(strncmp(cpName, "sd:/wiiu/apps/", strlen("sd:/wiiu/apps/")) == 0)
-           cpName += strlen("sd:/wiiu/apps/");
+        if(strncmp(cpName, "fs:/wiiu/apps/", strlen("fs:/wiiu/apps/")) == 0)
+           cpName += strlen("fs:/wiiu/apps/");
 
         homebrewButtons[idx].nameLabel = new GuiText(cpName, 32, glm::vec4(1.0f));
         homebrewButtons[idx].nameLabel->setAlignment(ALIGN_LEFT | ALIGN_MIDDLE);
@@ -124,8 +124,8 @@ HomebrewWindow::HomebrewWindow(int w, int h)
         homebrewButtons[idx].button->setLabel(homebrewButtons[idx].nameLabel, 0);
         homebrewButtons[idx].button->setLabel(homebrewButtons[idx].descriptionLabel, 1);
         homebrewButtons[idx].button->setIcon(homebrewButtons[idx].iconImg);
-        float fXOffset = (idx / MAX_BUTTONS_ON_PAGE) * width;
-        float fYOffset = (homebrewButtons[idx].image->getHeight() + 20.0f) * 1.5f - (homebrewButtons[idx].image->getHeight() + 20) * (idx % MAX_BUTTONS_ON_PAGE);
+        float fXOffset = (i / MAX_BUTTONS_ON_PAGE) * width;
+        float fYOffset = (homebrewButtons[idx].image->getHeight() + 20.0f) * 1.5f - (homebrewButtons[idx].image->getHeight() + 20) * (i % MAX_BUTTONS_ON_PAGE);
         homebrewButtons[idx].button->setPosition(currentLeftPosition + fXOffset, fYOffset);
         homebrewButtons[idx].button->setTrigger(&touchTrigger);
         homebrewButtons[idx].button->setTrigger(&wpadTouchTrigger);
@@ -314,6 +314,8 @@ void HomebrewWindow::OnCloseTcpReceiverFinish(GuiElement *element)
 
 void HomebrewWindow::OnTcpReceiveStart(GuiElement *element, u32 ip)
 {
+    setState(STATE_DISABLED);
+
     element->setEffect(EFFECT_FADE, 15, 255);
     element->effectFinished.connect(this, &HomebrewWindow::OnOpenEffectFinish);
     append(element);
@@ -327,7 +329,11 @@ void HomebrewWindow::OnTcpReceiveFinish(GuiElement *element, u32 ip, int result)
 
     if(result > 0)
     {
-        log_printf("Launching homebrew, loaded to address %08X size %08X\n", ELF_DATA_ADDR, ELF_DATA_SIZE);
+        u32 ApplicationMemoryEnd;
+        asm volatile("lis %0, __CODE_END@h; ori %0, %0, __CODE_END@l" : "=r" (ApplicationMemoryEnd));
+
+        ELF_DATA_ADDR = ApplicationMemoryEnd;
+        ELF_DATA_SIZE = result;
         Application::instance()->quit(EXIT_SUCCESS);
     }
 }
