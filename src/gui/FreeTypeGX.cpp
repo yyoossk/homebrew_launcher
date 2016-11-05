@@ -20,10 +20,9 @@
  * along with FreeTypeGX.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "FreeTypeGX.h"
 #include "video/CVideo.h"
 #include "video/shaders/Texture2DShader.h"
-#include "utils/logger.h"
+#include "FreeTypeGX.h"
 
 using namespace std;
 
