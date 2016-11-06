@@ -17,6 +17,7 @@
 #include <coreinit/core.h>
 #include <coreinit/foreground.h>
 #include <proc_ui/procui.h>
+#include <sysapp/launch.h>
 #include "Application.h"
 #include "common/common.h"
 #include "gui/FreeTypeGX.h"
@@ -29,6 +30,7 @@
 
 Application *Application::applicationInstance = NULL;
 bool Application::exitApplication = false;
+bool Application::quitRequest = false;
 
 Application::Application()
 	: CThread(CThread::eAttributeAffCore1 | CThread::eAttributePinnedAff, 0, 0x20000)
@@ -79,6 +81,11 @@ Application::~Application()
 	SoundHandler::DestroyInstance();
 
     ProcUIShutdown();
+
+    if(quitRequest)
+    {
+        SYSRelaunchTitle(0, 0);
+    }
 }
 
 int Application::exec()
@@ -89,6 +96,13 @@ int Application::exec()
 	shutdownThread();
 
 	return exitCode;
+}
+
+void Application::quit(int code)
+{
+    exitCode = code;
+    exitApplication = true;
+    quitRequest = true;
 }
 
 void Application::fadeOut()
@@ -147,7 +161,8 @@ bool Application::procUI(void)
     {
     case PROCUI_STATUS_EXITING:
     {
-        quit(EXIT_RELAUNCH_ON_LOAD);
+        exitCode = EXIT_SUCCESS;
+        exitApplication = true;
         break;
     }
     case PROCUI_STATUS_RELEASE_FOREGROUND:
@@ -174,28 +189,31 @@ bool Application::procUI(void)
     }
     case PROCUI_STATUS_IN_FOREGROUND:
     {
-        if(video == NULL)
+        if(!quitRequest)
         {
-            log_printf("initialze memory\n");
-            memoryInitialize();
-
-            log_printf("Initialize video\n");
-            video = new CVideo(GX2_TV_SCAN_MODE_720P, GX2_DRC_RENDER_MODE_SINGLE);
-            log_printf("Video size %i x %i\n", video->getTvWidth(), video->getTvHeight());
-
-            //! setup default Font
-            log_printf("Initialize main font system %p\n", Resources::GetFile("font.ttf"));
-            FreeTypeGX *fontSystem = new FreeTypeGX(Resources::GetFile("font.ttf"), Resources::GetFileSize("font.ttf"), true);
-            GuiText::setPresetFont(fontSystem);
-
-            if(mainWindow == NULL)
+            if(video == NULL)
             {
-                log_printf("Initialize main window\n");
-                mainWindow = new MainWindow(video->getTvWidth(), video->getTvHeight());
-            }
+                log_printf("initialze memory\n");
+                memoryInitialize();
 
+                log_printf("Initialize video\n");
+                video = new CVideo(GX2_TV_SCAN_MODE_720P, GX2_DRC_RENDER_MODE_SINGLE);
+                log_printf("Video size %i x %i\n", video->getTvWidth(), video->getTvHeight());
+
+                //! setup default Font
+                log_printf("Initialize main font system\n");
+                FreeTypeGX *fontSystem = new FreeTypeGX(Resources::GetFile("font.ttf"), Resources::GetFileSize("font.ttf"), true);
+                GuiText::setPresetFont(fontSystem);
+
+                if(mainWindow == NULL)
+                {
+                    log_printf("Initialize main window\n");
+                    mainWindow = new MainWindow(video->getTvWidth(), video->getTvHeight());
+                }
+
+            }
+            executeProcess = true;
         }
-        executeProcess = true;
         break;
     }
     case PROCUI_STATUS_IN_BACKGROUND:
@@ -257,6 +275,11 @@ void Application::executeThread(void)
         AsyncDeleter::triggerDeleteProcess();
 	}
 
+    //! in case we exit to a homebrew let's smoothly fade out
+    if(video)
+    {
+        fadeOut();
+    }
 
     log_printf("delete mainWindow\n");
     delete mainWindow;

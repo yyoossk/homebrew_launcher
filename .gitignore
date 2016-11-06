@@ -13,3 +13,5 @@
 /udp_debug_reader/GeckoLog.txt
 /installer/sd_loader.h
 /*.rpx
+/sd_loader/sd_loader.h
+/sd_loader/*.bin

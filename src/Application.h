@@ -53,10 +53,7 @@ public:
     int exec(void);
     void fadeOut(void);
 
-    void quit(int code) {
-        exitCode = code;
-        exitApplication = true;
-    }
+    void quit(int code);
 
 private:
     Application();
@@ -66,6 +63,7 @@ private:
 
     static Application *applicationInstance;
     static bool exitApplication;
+    static bool quitRequest;
 
     void executeThread(void);
 
