@@ -10,9 +10,7 @@
 #include "utils/StringTools.h"
 #include "utils/net.h"
 
-u32 __CODE_END = 0x0;
-
-TcpReceiver::TcpReceiver(int port)
+TcpReceiver::TcpReceiver(unsigned char* loadAddr, int port)
     : GuiFrame(0, 0)
     , CThread(CThread::eAttributeAffCore0 | CThread::eAttributePinnedAff)
     , exitRequested(false)
@@ -25,9 +23,7 @@ TcpReceiver::TcpReceiver(int port)
     height = progressWindow.getHeight();
     append(&progressWindow);
 
-    u32 ApplicationMemoryEnd = getApplicationEndAddr();
-
-    loadAddress = (unsigned char*)ApplicationMemoryEnd;
+    loadAddress = loadAddr;
     resumeThread();
 }
 

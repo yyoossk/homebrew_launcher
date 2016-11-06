@@ -79,7 +79,7 @@ MAKEFLAGS += --no-print-directory
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
 #---------------------------------------------------------------------------------
-LIBS	:= -lcrt -lcoreinit -lproc_ui -lnsysnet -lsndcore2 -lvpad -lgx2 -lgd -lpng -lz -lfreetype -lmad -lvorbisidec
+LIBS	:= -lcrt -lcoreinit -lproc_ui -lnsysnet -lsndcore2 -lvpad -lgx2 -lsysapp -lgd -lpng -lz -lfreetype -lmad -lvorbisidec
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -146,12 +146,14 @@ export OUTPUT	:=	$(CURDIR)/$(TARGET)
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
+	@$(Q)$(MAKE) -C sd_loader
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).bin $(BUILD_DBG).elf
+	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).bin $(BUILD_DBG).elf $(OUTPUT).rpx 
+	@$(MAKE) -C sd_loader clean
 
 #---------------------------------------------------------------------------------
 else
@@ -172,15 +174,11 @@ $(OUTPUT).elf:  $(OFILES)
 	$(Q)$(LD) $^ $(LDFLAGS) -o $@ $(LIBPATHS) $(LIBS)
 #	$(Q)$(OBJCOPY) -S -R .comment -R .gnu.attributes ../$(BUILD_DBG).elf $@
 
-../data/loader.bin:
-	$(MAKE) -C ../loader clean
-	$(MAKE) -C ../loader
-	
 #---------------------------------------------------------------------------------
 %.rpx: %.elf
 #---------------------------------------------------------------------------------
 	@echo "[RPX] $(notdir $@)"
-	$(ELF2RPL) $^ $@
+	@$(ELF2RPL) $^ $@
 
 #---------------------------------------------------------------------------------
 %.a:

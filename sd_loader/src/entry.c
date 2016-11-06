@@ -1,7 +1,6 @@
 #include <gctypes.h>
 #include "elf_abi.h"
 #include "../../src/common/common.h"
-#include "../../src/common/fs_defs.h"
 #include "../../src/common/os_defs.h"
 
 #define CODE_RW_BASE_OFFSET                             0
@@ -22,110 +21,10 @@ typedef struct _private_data_t
     EXPORT_DECL(void, DCFlushRange, const void *addr, u32 length);
     EXPORT_DECL(void, ICInvalidateRange, const void *addr, u32 length);
     EXPORT_DECL(int, __os_snprintf, char* s, int n, const char * format, ...);
-    EXPORT_DECL(void, exit, void);
-
-    EXPORT_DECL(int, FSInit, void);
-    EXPORT_DECL(int, FSAddClientEx, void *pClient, int unk_zero_param, int errHandling);
-    EXPORT_DECL(int, FSDelClient, void *pClient);
-    EXPORT_DECL(void, FSInitCmdBlock, void *pCmd);
-    EXPORT_DECL(int, FSGetMountSource, void *pClient, void *pCmd, int type, void *source, int errHandling);
-    EXPORT_DECL(int, FSMount, void *pClient, void *pCmd, void *source, const char *target, uint32_t bytes, int errHandling);
-    EXPORT_DECL(int, FSUnmount, void *pClient, void *pCmd, const char *target, int errHandling);
-    EXPORT_DECL(int, FSOpenFile, void *pClient, void *pCmd, const char *path, const char *mode, int *fd, int errHandling);
-    EXPORT_DECL(int, FSGetStatFile, void *pClient, void *pCmd, int fd, void *buffer, int error);
-    EXPORT_DECL(int, FSReadFile, void *pClient, void *pCmd, void *buffer, int size, int count, int fd, int flag, int errHandling);
-    EXPORT_DECL(int, FSCloseFile, void *pClient, void *pCmd, int fd, int errHandling);
+    EXPORT_DECL(void, exit, int);
 
     EXPORT_DECL(int, SYSRelaunchTitle, int argc, char** argv);
 } private_data_t;
-
-static int LoadFileToMem(private_data_t *private_data, const char *filepath, unsigned char **fileOut, unsigned int * sizeOut)
-{
-    int iFd = -1;
-    void *pClient = private_data->MEMAllocFromDefaultHeapEx(FS_CLIENT_SIZE, 4);
-    if(!pClient)
-        return 0;
-
-    void *pCmd = private_data->MEMAllocFromDefaultHeapEx(FS_CMD_BLOCK_SIZE, 4);
-    if(!pCmd)
-    {
-        private_data->MEMFreeToDefaultHeap(pClient);
-        return 0;
-    }
-
-    int success = 0;
-    private_data->FSInit();
-    private_data->FSInitCmdBlock(pCmd);
-    private_data->FSAddClientEx(pClient, 0, -1);
-
-    do
-    {
-        char tempPath[FS_MOUNT_SOURCE_SIZE];
-        char mountPath[FS_MAX_MOUNTPATH_SIZE];
-
-        int status = private_data->FSGetMountSource(pClient, pCmd, 0, tempPath, -1);
-        if (status != 0) {
-            private_data->OSFatal("FSGetMountSource failed.");
-            break;
-        }
-        status = private_data->FSMount(pClient, pCmd, tempPath, mountPath, FS_MAX_MOUNTPATH_SIZE, -1);
-        if(status != 0) {
-            private_data->OSFatal("SD mount failed.");
-            break;
-        }
-
-        status = private_data->FSOpenFile(pClient, pCmd, filepath, "r", &iFd, -1);
-        if(status != 0)
-        {
-            private_data->FSUnmount(pClient, pCmd, mountPath, -1);
-            break;
-        }
-
-        FSStat stat;
-        stat.size = 0;
-
-        void *pBuffer = NULL;
-
-        private_data->FSGetStatFile(pClient, pCmd, iFd, &stat, -1);
-
-        if(stat.size > 0)
-            pBuffer = private_data->MEMAllocFromDefaultHeapEx((stat.size + 0x3F) & ~0x3F, 0x40);
-
-        if(!pBuffer)
-            private_data->OSFatal("Not enough memory for ELF file.");
-
-        unsigned int done = 0;
-
-        while(done < stat.size)
-        {
-            int readBytes = private_data->FSReadFile(pClient, pCmd, pBuffer + done, 1, stat.size - done, iFd, 0, -1);
-            if(readBytes <= 0) {
-                break;
-            }
-            done += readBytes;
-        }
-
-        if(done != stat.size)
-        {
-            private_data->MEMFreeToDefaultHeap(pBuffer);
-        }
-        else
-        {
-            *fileOut = (unsigned char*)pBuffer;
-            *sizeOut = stat.size;
-            success = 1;
-        }
-
-        private_data->FSCloseFile(pClient, pCmd, iFd, -1);
-        private_data->FSUnmount(pClient, pCmd, mountPath, -1);
-    }
-    while(0);
-
-    private_data->FSDelClient(pClient);
-    private_data->MEMFreeToDefaultHeap(pClient);
-    private_data->MEMFreeToDefaultHeap(pCmd);
-    return success;
-}
 
 static unsigned int load_elf_image (private_data_t *private_data, unsigned char *elfstart)
 {
@@ -218,18 +117,6 @@ static void loadFunctionPointers(private_data_t * private_data)
     OS_FIND_EXPORT(coreinit_handle, "__os_snprintf", private_data->__os_snprintf);
     OS_FIND_EXPORT(coreinit_handle, "exit", private_data->exit);
 
-    OS_FIND_EXPORT(coreinit_handle, "FSInit", private_data->FSInit);
-    OS_FIND_EXPORT(coreinit_handle, "FSAddClientEx", private_data->FSAddClientEx);
-    OS_FIND_EXPORT(coreinit_handle, "FSDelClient", private_data->FSDelClient);
-    OS_FIND_EXPORT(coreinit_handle, "FSInitCmdBlock", private_data->FSInitCmdBlock);
-    OS_FIND_EXPORT(coreinit_handle, "FSGetMountSource", private_data->FSGetMountSource);
-    OS_FIND_EXPORT(coreinit_handle, "FSMount", private_data->FSMount);
-    OS_FIND_EXPORT(coreinit_handle, "FSUnmount", private_data->FSUnmount);
-    OS_FIND_EXPORT(coreinit_handle, "FSOpenFile", private_data->FSOpenFile);
-    OS_FIND_EXPORT(coreinit_handle, "FSGetStatFile", private_data->FSGetStatFile);
-    OS_FIND_EXPORT(coreinit_handle, "FSReadFile", private_data->FSReadFile);
-    OS_FIND_EXPORT(coreinit_handle, "FSCloseFile", private_data->FSCloseFile);
-
     unsigned int sysapp_handle;
     OSDynLoad_Acquire("sysapp.rpl", &sysapp_handle);
     OS_FIND_EXPORT(sysapp_handle, "SYSRelaunchTitle", private_data->SYSRelaunchTitle);
@@ -241,61 +128,30 @@ int _start(int argc, char **argv)
         private_data_t private_data;
         loadFunctionPointers(&private_data);
 
-        while(1)
+        if(ELF_DATA_ADDR != 0xDEADC0DE && ELF_DATA_SIZE > 0)
         {
-            if(ELF_DATA_ADDR != 0xDEADC0DE && ELF_DATA_SIZE > 0)
+            //! copy data to safe area before processing it
+            unsigned char * pElfBuffer = (unsigned char *)private_data.MEMAllocFromDefaultHeapEx(ELF_DATA_SIZE, 4);
+            if(pElfBuffer)
             {
-                //! copy data to safe area before processing it
-                unsigned char * pElfBuffer = (unsigned char *)private_data.MEMAllocFromDefaultHeapEx(ELF_DATA_SIZE, 4);
-                if(pElfBuffer)
-                {
-                    private_data.memcpy(pElfBuffer, (unsigned char*)ELF_DATA_ADDR, ELF_DATA_SIZE);
-                    MAIN_ENTRY_ADDR = load_elf_image(&private_data, pElfBuffer);
-                    private_data.MEMFreeToDefaultHeap(pElfBuffer);
-                }
-                ELF_DATA_ADDR = 0xDEADC0DE;
-                ELF_DATA_SIZE = 0;
+                private_data.memcpy(pElfBuffer, (unsigned char*)ELF_DATA_ADDR, ELF_DATA_SIZE);
+                MAIN_ENTRY_ADDR = load_elf_image(&private_data, pElfBuffer);
+                private_data.MEMFreeToDefaultHeap(pElfBuffer);
             }
+            ELF_DATA_ADDR = 0xDEADC0DE;
+            ELF_DATA_SIZE = 0;
+        }
 
-            if(MAIN_ENTRY_ADDR == 0xDEADC0DE || MAIN_ENTRY_ADDR == 0)
+        if((MAIN_ENTRY_ADDR != 0xDEADC0DE) && (MAIN_ENTRY_ADDR != 0))
+        {
+            int returnVal = ((int (*)(int, char **))MAIN_ENTRY_ADDR)(argc, argv);
+
+            //! exit to miimaker and restart application on re-enter of another application
+            if(returnVal != (int)EXIT_RELAUNCH_ON_LOAD)
             {
-                unsigned char *pElfBuffer = NULL;
-                unsigned int uiElfSize = 0;
-
-                LoadFileToMem(&private_data, CAFE_OS_SD_PATH WIIU_PATH "/apps/homebrew_launcher/homebrew_launcher.elf", &pElfBuffer, &uiElfSize);
-
-                if(!pElfBuffer)
-                {
-                    private_data.OSFatal("Could not load file " WIIU_PATH "/apps/homebrew_launcher/homebrew_launcher.elf");
-                }
-                else
-                {
-                    MAIN_ENTRY_ADDR = load_elf_image(&private_data, pElfBuffer);
-                    private_data.MEMFreeToDefaultHeap(pElfBuffer);
-
-                    if(MAIN_ENTRY_ADDR == 0)
-                    {
-                        private_data.OSFatal("Failed to load ELF " WIIU_PATH "/apps/homebrew_launcher/homebrew_launcher.elf");
-                    }
-                }
-            }
-            else
-            {
-                int returnVal = ((int (*)(int, char **))MAIN_ENTRY_ADDR)(argc, argv);
-
-                //! exit to miimaker and restart application on re-enter of another application
-                if(returnVal == (int)EXIT_RELAUNCH_ON_LOAD)
-                {
-                    break;
-                }
-                //! exit to homebrew launcher in all other cases
-                else
-                {
-                    MAIN_ENTRY_ADDR = 0xDEADC0DE;
-                    private_data.SYSRelaunchTitle(0, 0);
-                    private_data.exit();
-                    break;
-                }
+                MAIN_ENTRY_ADDR = 0xDEADC0DE;
+                private_data.SYSRelaunchTitle(0, 0);
+                private_data.exit(0);
             }
         }
     }

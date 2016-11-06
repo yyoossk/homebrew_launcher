@@ -7,7 +7,7 @@ extern "C" {
 
 #include "os_defs.h"
 
-#define HBL_VERSION                 "v1.3"
+#define HBL_VERSION                 "v2.0"
 
 #define CAFE_OS_SD_PATH             "/vol/external01"
 #define SD_PATH                     "fs:"
@@ -23,6 +23,8 @@ extern "C" {
 #define OS_FIRMWARE                 (*(volatile unsigned int*)(MEM_BASE + 0x1400 + 0x04))
 
 #define OS_SPECIFICS                ((OsSpecifics*)(MEM_BASE + 0x1500))
+
+#define APP_BASE_MEM                ((unsigned char*)(MEM_BASE + 0x2000))
 
 #ifndef EXIT_SUCCESS
 #define EXIT_SUCCESS                0

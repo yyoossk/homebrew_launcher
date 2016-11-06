@@ -4,6 +4,7 @@
 #include "utils/utils.h"
 #include "dynamic_libs/padscore_functions.h"
 #include "common/common.h"
+#include "kernel/gx2sploit.h"
 
 /* Entry point */
 extern "C" int Menu_Main(void)
@@ -12,22 +13,20 @@ extern "C" int Menu_Main(void)
     //!                   Initialize function pointers                   *
     //!*******************************************************************
     //! do OS (for acquire) and sockets first so we got logging
-//    InitOSFunctionPointers();
-//    InitSocketFunctionPointers();
-
     log_init("192.168.178.3");
-    log_print("Starting launcher\n");
 
-/*
-    InitFSFunctionPointers();
-    InitGX2FunctionPointers();
-    InitSysFunctionPointers();
-    InitVPadFunctionPointers();
+    //! *******************************************************************
+    //! *    Check if our application needs to run the kexploit started   *
+    //! *******************************************************************
+    if(CheckKernelExploit() == 0)
+    {
+        return 0;
+    }
+
+    log_printf("Welcome to the Homebrew Launcher %s\n", HBL_VERSION);
+
     InitPadScoreFunctionPointers();
-    InitAXFunctionPointers();
-*/
-    InitPadScoreFunctionPointers();
-    log_print("Function exports loaded\n");
+    log_printf("Function exports loaded\n");
 
     //!*******************************************************************
     //!                    Enter main application                        *
@@ -38,6 +37,7 @@ extern "C" int Menu_Main(void)
 
     Application::destroyInstance();
 
+    log_printf("HBL exit\n");
     log_deinit();
 
     return returnCode;

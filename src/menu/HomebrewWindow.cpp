@@ -43,7 +43,7 @@ HomebrewWindow::HomebrewWindow(int w, int h)
     , wpadTouchTrigger(GuiTrigger::CHANNEL_2 | GuiTrigger::CHANNEL_3 | GuiTrigger::CHANNEL_4 | GuiTrigger::CHANNEL_5, GuiTrigger::BUTTON_A)
     , buttonLTrigger(GuiTrigger::CHANNEL_ALL, GuiTrigger::BUTTON_L | GuiTrigger::BUTTON_LEFT, true)
     , buttonRTrigger(GuiTrigger::CHANNEL_ALL, GuiTrigger::BUTTON_R | GuiTrigger::BUTTON_RIGHT, true)
-    , tcpReceiver(DEFAULT_WIILOAD_PORT)
+    , tcpReceiver(APP_BASE_MEM, DEFAULT_WIILOAD_PORT)
 {
     tcpReceiver.serverReceiveStart.connect(this, &HomebrewWindow::OnTcpReceiveStart);
     tcpReceiver.serverReceiveFinished.connect(this, &HomebrewWindow::OnTcpReceiveFinish);
@@ -52,7 +52,7 @@ HomebrewWindow::HomebrewWindow(int w, int h)
     currentLeftPosition = 0;
     listOffset = 0;
 
-    DirList dirList("sd:/wiiu/apps", ".elf", DirList::Files | DirList::CheckSubfolders, 1);
+    DirList dirList("fs:/vol/external01/wiiu/apps", ".elf", DirList::Files | DirList::CheckSubfolders, 1);
 
     dirList.SortList();
 
@@ -105,8 +105,8 @@ HomebrewWindow::HomebrewWindow(int w, int h)
         const char *cpName = xmlReadSuccess ? metaXml.GetName() : homebrewButtons[idx].execPath.c_str();
         const char *cpDescription = xmlReadSuccess ? metaXml.GetShortDescription() : "";
 
-        if(strncmp(cpName, "sd:/wiiu/apps/", strlen("sd:/wiiu/apps/")) == 0)
-           cpName += strlen("sd:/wiiu/apps/");
+        if(strncmp(cpName, "fs:/vol/external01/wiiu/apps/", strlen("fs:/vol/external01/wiiu/apps/")) == 0)
+           cpName += strlen("fs:/vol/external01/wiiu/apps/");
 
         homebrewButtons[idx].nameLabel = new GuiText(cpName, 32, glm::vec4(1.0f));
         homebrewButtons[idx].nameLabel->setAlignment(ALIGN_LEFT | ALIGN_MIDDLE);
@@ -329,9 +329,7 @@ void HomebrewWindow::OnTcpReceiveFinish(GuiElement *element, u32 ip, int result)
 
     if(result > 0)
     {
-        u32 ApplicationMemoryEnd = getApplicationEndAddr();
-
-        ELF_DATA_ADDR = ApplicationMemoryEnd;
+        ELF_DATA_ADDR = (u32)APP_BASE_MEM;
         ELF_DATA_SIZE = result;
         Application::instance()->quit(EXIT_SUCCESS);
     }
