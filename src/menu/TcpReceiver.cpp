@@ -41,7 +41,10 @@ void TcpReceiver::executeThread()
 {
 	serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (serverSocket < 0)
+	{
+	    log_printf("Server socket create failed\n");
 		return;
+	}
 
     u32 enable = 1;
 	setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable));
@@ -53,18 +56,23 @@ void TcpReceiver::executeThread()
 	bindAddress.sin_addr.s_addr = INADDR_ANY;
 
 	s32 ret;
-	if ((ret = bind(serverSocket, (struct sockaddr *)&bindAddress, sizeof(bindAddress))) < 0) {
+	if ((ret = bind(serverSocket, (struct sockaddr *)&bindAddress, sizeof(bindAddress))) < 0)
+    {
+	    log_printf("Server socket bind failed\n");
 		socketclose(serverSocket);
 		return;
 	}
 
-	if ((ret = listen(serverSocket, 3)) < 0) {
+	if ((ret = listen(serverSocket, 1)) < 0)
+    {
+	    log_printf("Server socket listen failed\n");
 		socketclose(serverSocket);
 		return;
 	}
 
 	struct sockaddr_in clientAddr;
-	socklen_t addrlen = sizeof(struct sockaddr);
+	memset(&clientAddr, 0, sizeof(clientAddr));
+	socklen_t addrlen = sizeof(clientAddr);
 
     while(!exitRequested)
     {
@@ -82,6 +90,7 @@ void TcpReceiver::executeThread()
         }
         else
         {
+	        log_printf("Server socket accept failed %i\n", clientSocket);
             usleep(100000);
         }
     }
