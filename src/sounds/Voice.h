@@ -81,7 +81,7 @@ public:
         voiceBuffer.dataType = format;
         voiceBuffer.loopingEnabled = (nextBuffer == NULL) ? 0 : 1;
         voiceBuffer.currentOffset = 0;
-        voiceBuffer.endOffset = bufferSize >> 1;
+        voiceBuffer.endOffset = (bufferSize >> 1) - 1;
         voiceBuffer.loopOffset = ((nextBuffer - buffer) >> 1);
         nextBufferSize = nextBufSize;
 
@@ -130,7 +130,7 @@ public:
         if(lastLoopCounter != loopCounter)
         {
             lastLoopCounter = loopCounter;
-            AXSetVoiceEndOffset(voice, voiceBuffer.loopOffset  + (nextBufferSize >> 1));
+            AXSetVoiceEndOffset(voice, voiceBuffer.loopOffset  + (nextBufferSize >> 1) - 1);
             return true;
         }
         return false;

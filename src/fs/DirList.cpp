@@ -42,9 +42,9 @@ DirList::DirList()
 	Depth = 0;
 }
 
-DirList::DirList(const std::string & path, const char *filter, u32 flags, u32 depth)
+DirList::DirList(const std::string & path, const char *filter, u32 flags, u32 maxDepth)
 {
-	this->LoadPath(path, filter, flags, depth);
+	this->LoadPath(path, filter, flags, maxDepth);
 	this->SortList();
 }
 
@@ -53,13 +53,13 @@ DirList::~DirList()
 	ClearList();
 }
 
-bool DirList::LoadPath(const std::string & folder, const char *filter, u32 flags, u32 depth)
+bool DirList::LoadPath(const std::string & folder, const char *filter, u32 flags, u32 maxDepth)
 {
 	if(folder.empty()) return false;
 
 	Flags = flags;
 	Filter = filter;
-	Depth = depth;
+	Depth = maxDepth;
 
 	std::string folderpath(folder);
 	u32 length = folderpath.size();
@@ -78,7 +78,6 @@ bool DirList::LoadPath(const std::string & folder, const char *filter, u32 flags
 	return InternalLoadPath(folderpath);
 }
 
-#include "utils/logger.h"
 bool DirList::InternalLoadPath(std::string &folderpath)
 {
 	if(folderpath.size() < 3)
@@ -87,7 +86,6 @@ bool DirList::InternalLoadPath(std::string &folderpath)
 	struct dirent *dirent = NULL;
 	DIR *dir = NULL;
 
-    log_printf("open %s\n", folderpath.c_str());
 	dir = opendir(folderpath.c_str());
 	if (dir == NULL)
 		return false;

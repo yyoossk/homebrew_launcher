@@ -16,7 +16,6 @@
  ****************************************************************************/
 #include <malloc.h>
 #include <string.h>
-#include <gctypes.h>
 #include "common/common.h"
 #include "utils/utils.h"
 #include "memory_area_table.h"
@@ -352,9 +351,7 @@ static inline void memoryAddArea(int start, int end, int cur_index)
 /* Create memory areas arrays */
 void memoryInitAreaTable()
 {
-    u32 ApplicationMemoryEnd = getApplicationEndAddr();
-    if(ApplicationMemoryEnd >= 0x01000000)
-        ApplicationMemoryEnd = 0x00800000;
+    u32 ApplicationMemoryEnd = (u32)APP_BASE_MEM;
 
     // This one seems to be available on every firmware and therefore its our code area but also our main RPX area behind our code
     // 22876 kB - our application    // ok

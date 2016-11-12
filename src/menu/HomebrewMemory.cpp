@@ -1,6 +1,7 @@
 #include <string.h>
+#include <coreinit/cache.h>
+#include <coreinit/memory.h>
 #include "common/common.h"
-#include "dynamic_libs/os_functions.h"
 #include "system/memory_area_table.h"
 #include "utils/utils.h"
 #include "utils/logger.h"
@@ -29,7 +30,7 @@ int HomebrewCopyMemory(u8 *address, u32 bytes)
         if(*(u16*)&address[7] != 0xCAFE)
         {
             // assume ELF
-            ELF_DATA_ADDR = getApplicationEndAddr();
+            ELF_DATA_ADDR = (u32)APP_BASE_MEM;
         }
         else
         {

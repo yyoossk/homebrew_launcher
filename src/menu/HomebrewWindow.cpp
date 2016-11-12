@@ -43,7 +43,7 @@ HomebrewWindow::HomebrewWindow(int w, int h)
     , wpadTouchTrigger(GuiTrigger::CHANNEL_2 | GuiTrigger::CHANNEL_3 | GuiTrigger::CHANNEL_4 | GuiTrigger::CHANNEL_5, GuiTrigger::BUTTON_A)
     , buttonLTrigger(GuiTrigger::CHANNEL_ALL, GuiTrigger::BUTTON_L | GuiTrigger::BUTTON_LEFT, true)
     , buttonRTrigger(GuiTrigger::CHANNEL_ALL, GuiTrigger::BUTTON_R | GuiTrigger::BUTTON_RIGHT, true)
-    , tcpReceiver(APP_BASE_MEM, DEFAULT_WIILOAD_PORT)
+    , tcpReceiver(DEFAULT_WIILOAD_PORT)
 {
     tcpReceiver.serverReceiveStart.connect(this, &HomebrewWindow::OnTcpReceiveStart);
     tcpReceiver.serverReceiveFinished.connect(this, &HomebrewWindow::OnTcpReceiveFinish);
@@ -52,7 +52,7 @@ HomebrewWindow::HomebrewWindow(int w, int h)
     currentLeftPosition = 0;
     listOffset = 0;
 
-    DirList dirList("fs:/vol/external01/wiiu/apps", ".elf", DirList::Files | DirList::CheckSubfolders, 1);
+    DirList dirList("fs:/vol/external01/wiiu/apps", ".elf,.rpx", DirList::Files | DirList::CheckSubfolders, 1);
 
     dirList.SortList();
 
@@ -314,8 +314,6 @@ void HomebrewWindow::OnCloseTcpReceiverFinish(GuiElement *element)
 
 void HomebrewWindow::OnTcpReceiveStart(GuiElement *element, u32 ip)
 {
-    setState(STATE_DISABLED);
-
     element->setEffect(EFFECT_FADE, 15, 255);
     element->effectFinished.connect(this, &HomebrewWindow::OnOpenEffectFinish);
     append(element);
@@ -329,8 +327,7 @@ void HomebrewWindow::OnTcpReceiveFinish(GuiElement *element, u32 ip, int result)
 
     if(result > 0)
     {
-        ELF_DATA_ADDR = (u32)APP_BASE_MEM;
-        ELF_DATA_SIZE = result;
+        log_printf("Launching homebrew, loaded to address %08X size %08X\n", ELF_DATA_ADDR, ELF_DATA_SIZE);
         Application::instance()->quit(EXIT_SUCCESS);
     }
 }

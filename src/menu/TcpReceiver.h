@@ -20,7 +20,7 @@ public:
         NOT_ENOUGH_MEMORY = -4,
     };
 
-    TcpReceiver(unsigned char* loadAddr, int port);
+    TcpReceiver(int port);
     ~TcpReceiver();
 
     sigslot::signal2<GuiElement *, u32> serverReceiveStart;
