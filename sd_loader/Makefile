@@ -138,7 +138,7 @@ $(OUTPUT).elf: $(OFILES)
 	$(Q)$(LD) -n -T $^ $(LDFLAGS) -o ../$(BUILD_DBG).elf  $(LIBPATHS) $(LIBS)
 	$(Q)$(OBJCOPY) -S -R .comment -R .gnu.attributes ../$(BUILD_DBG).elf $@
 	$(Q)$(OBJCOPY) -j .text -j .data -O binary $@ ../$(TARGET).bin
-	$(Q)xxd -i ../$(TARGET).bin  | sed "s/unsigned/static const unsigned/g;" > $(OUTPUT).h
+	$(Q)xxd -i ../$(TARGET).elf  | sed "s/unsigned/static const unsigned/g;" > $(OUTPUT).h
 
 #---------------------------------------------------------------------------------
 %.a:

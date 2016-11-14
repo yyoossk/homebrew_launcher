@@ -12,6 +12,7 @@
 #include <string.h>
 #include "common/common.h"
 #include "utils/logger.h"
+#include "elf_abi.h"
 #include "../../sd_loader/sd_loader.h"
 
 #define JIT_ADDRESS			        0x01800000
@@ -34,9 +35,6 @@
 #define METADATA_OFFSET			    0x14
 #define METADATA_SIZE			    0x10
 
-#define ADDRESS_main_entry_hook         0x0101c56c
-#define ADDRESS_OSTitle_main_entry_ptr  0x1005E040
-
 #define BAT_SETUP_HOOK_ADDR         0xFFF1D624
 #define BAT_SETUP_HOOK_ENTRY        0x00800000
 #define BAT4U_VAL                   0x008000FF
@@ -52,6 +50,17 @@
 
 #define BAT_SET_NOP_ADDR_8          0xFFEE11C4
 #define BAT_SET_NOP_ADDR_9          0xFFEE11C8
+
+
+#define ADDRESS_main_entry_hook                     0x0101c56c
+#define ADDRESS_OSTitle_main_entry_ptr              0x1005E040
+
+#define address_LiWaitIopComplete                   0x01010180
+#define address_LiWaitIopCompleteWithInterrupts     0x0101006C
+#define address_LiWaitOneChunk                      0x0100080C
+#define address_PrepareTitle_hook                   0xFFF184E4
+#define address_sgIsLoadingBuffer                   0xEFE19E80
+#define address_gDynloadInitialized                 0xEFE13DBC
 
 #define NOP_ADDR(addr) \
         *(u32*)addr = 0x60000000; \
@@ -233,6 +242,66 @@ static void setup_syscall(void)
     asm volatile("eieio; isync");
 }
 
+static unsigned int get_section(const unsigned char *data, const char *name, unsigned int * size, unsigned int * addr)
+{
+    Elf32_Ehdr *ehdr = (Elf32_Ehdr *) data;
+
+    if (   !data
+        || !IS_ELF (*ehdr)
+        || (ehdr->e_type != ET_EXEC)
+        || (ehdr->e_machine != EM_PPC))
+    {
+        OSFatal("Invalid elf file");
+    }
+
+    Elf32_Shdr *shdr = (Elf32_Shdr *) (data + ehdr->e_shoff);
+    int i;
+    for(i = 0; i < ehdr->e_shnum; i++)
+    {
+        const char *section_name = ((const char*)data) + shdr[ehdr->e_shstrndx].sh_offset + shdr[i].sh_name;
+        if(strcmp(section_name, name) == 0)
+        {
+            if(addr)
+                *addr = shdr[i].sh_addr;
+            if(size)
+                *size = shdr[i].sh_size;
+            return shdr[i].sh_offset;
+        }
+    }
+
+    OSFatal((char*)name);
+    return 0;
+}
+
+static unsigned int load_loader_elf(unsigned char* baseAddress)
+{
+    //! get .text section
+    unsigned int main_text_addr = 0;
+    unsigned int main_text_len = 0;
+    unsigned int section_offset = get_section(___sd_loader_elf, ".text", &main_text_len, &main_text_addr);
+    const unsigned char *main_text = ___sd_loader_elf + section_offset;
+
+    //! clear memory where the text and data goes by 0x2000 which is reserved for sd loader
+    memset(baseAddress + main_text_addr, 0, 0x2000);
+
+    //! Copy main .text to memory
+    memcpy(baseAddress + main_text_addr, main_text, main_text_len);
+    DCFlushRange(baseAddress + main_text_addr, main_text_len);
+
+    //! get the .data section
+    unsigned int main_data_addr = 0;
+    unsigned int main_data_len = 0;
+    section_offset = get_section(___sd_loader_elf, ".data", &main_data_len, &main_data_addr);
+
+    const unsigned char *main_data = ___sd_loader_elf + section_offset;
+    //! Copy main data to memory
+    memcpy(baseAddress + main_data_addr, main_data, main_data_len);
+    DCFlushRange(baseAddress + main_data_addr, main_data_len);
+
+    Elf32_Ehdr *ehdr = (Elf32_Ehdr *)___sd_loader_elf;
+    return ehdr->e_entry;
+}
+
 int CheckKernelExploit(void)
 {
     if(OSEffectiveToPhysical((void*)0xA0000000) == 0x10000000)
@@ -258,12 +327,15 @@ int CheckKernelExploit(void)
         targetAddress[11] = 0x4e800420;                         // bctr
         DCFlushRange(targetAddress, sizeof(backupBuffer));
 
-        u8 *sdLoaderAddress = (u8*)(0xA0000000 + (0x30800000 - 0x10000000));
-        memset(sdLoaderAddress, 0, 0x2000 - sizeof(___sd_loader_bin));
-        memcpy(sdLoaderAddress, ___sd_loader_bin, sizeof(___sd_loader_bin));
+        u8 *sdLoaderAddress = (u8*)(0xA0000000 + (0x30000000 - 0x10000000));
+        u32 entryPoint = load_loader_elf(sdLoaderAddress);
 
-        // OS_FIRMWARE -> 550 on 5.5.x
-        *(u32*)(sdLoaderAddress + 0x1400 + 4) = 550;
+        sdLoaderAddress += BAT_SETUP_HOOK_ENTRY;
+
+        //! set HBL version as channel version
+        *(u32*)(sdLoaderAddress + HBL_CHANNEL_OFFSET) = HBL_VERSION_INT;
+        //! OS_FIRMWARE -> 550 on 5.5.x specific addresses
+        *(u32*)(sdLoaderAddress + OS_FIRMWARE_OFFSET) = 550;
 
         OsSpecifics *osSpecificFunctions = (OsSpecifics *)(sdLoaderAddress + 0x1500);
         osSpecificFunctions->addr_OSDynLoad_Acquire = (unsigned int)OSDynLoad_Acquire;
@@ -274,7 +346,16 @@ int CheckKernelExploit(void)
         osSpecificFunctions->addr_KernSyscallTbl4 = KERN_SYSCALL_TBL_4;
         osSpecificFunctions->addr_KernSyscallTbl5 = KERN_SYSCALL_TBL_5;
         osSpecificFunctions->addr_OSTitle_main_entry = ADDRESS_OSTitle_main_entry_ptr;
+
+        osSpecificFunctions->LiWaitIopComplete = (int (*)(int, int *)) address_LiWaitIopComplete;
+        osSpecificFunctions->LiWaitIopCompleteWithInterrupts = (int (*)(int, int *)) address_LiWaitIopCompleteWithInterrupts;
+        osSpecificFunctions->addr_LiWaitOneChunk = address_LiWaitOneChunk;
+        osSpecificFunctions->addr_PrepareTitle_hook = address_PrepareTitle_hook;
+        osSpecificFunctions->addr_sgIsLoadingBuffer = address_sgIsLoadingBuffer;
+        osSpecificFunctions->addr_gDynloadInitialized = address_gDynloadInitialized;
+        osSpecificFunctions->orig_LiWaitOneChunkInstr = *(unsigned int*)address_LiWaitOneChunk;
         DCFlushRange(sdLoaderAddress, 0x2000);
+
 
         /* set our setup syscall to an unused position */
         kern_write((void*)(KERN_SYSCALL_TBL_2 + (0x25 * 4)), 0x017FF000);
@@ -290,7 +371,7 @@ int CheckKernelExploit(void)
         DCFlushRange(targetAddress, sizeof(backupBuffer));
 
         unsigned int repl_addr = ADDRESS_main_entry_hook;
-        *(u32*)(0xC1000000 + repl_addr) = 0x48000003 | 0x00800048;
+        *(u32*)(0xC1000000 + repl_addr) = 0x48000003 | entryPoint;
         DCFlushRange((void*)0xC1000000 + repl_addr, 4);
         ICInvalidateRange((void*)(repl_addr), 4);
 

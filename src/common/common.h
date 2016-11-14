@@ -8,6 +8,7 @@ extern "C" {
 #include "os_defs.h"
 
 #define HBL_VERSION                 "v2.0"
+#define HBL_VERSION_INT             200
 
 #define CAFE_OS_SD_PATH             "/vol/external01"
 #define SD_PATH                     "fs:"
@@ -17,13 +18,16 @@ extern "C" {
 #define MEM_BASE                    (0x00800000)
 #endif
 
+
 #define ELF_DATA_ADDR               (*(volatile unsigned int*)(MEM_BASE + 0x1300 + 0x00))
 #define ELF_DATA_SIZE               (*(volatile unsigned int*)(MEM_BASE + 0x1300 + 0x04))
-#define HBL_CHANNEL                 (*(volatile unsigned int*)(MEM_BASE + 0x1300 + 0x08))
+#define HBL_CHANNEL_OFFSET          (0x1300 + 0x08)
+#define HBL_CHANNEL                 (*(volatile unsigned int*)(MEM_BASE + HBL_CHANNEL_OFFSET))
 #define RPX_MAX_SIZE                (*(volatile unsigned int*)(MEM_BASE + 0x1300 + 0x0C))
 #define RPX_MAX_CODE_SIZE           (*(volatile unsigned int*)(MEM_BASE + 0x1300 + 0x10))
 #define MAIN_ENTRY_ADDR             (*(volatile unsigned int*)(MEM_BASE + 0x1400 + 0x00))
-#define OS_FIRMWARE                 (*(volatile unsigned int*)(MEM_BASE + 0x1400 + 0x04))
+#define OS_FIRMWARE_OFFSET          (0x1400 + 0x04)
+#define OS_FIRMWARE                 (*(volatile unsigned int*)(MEM_BASE + OS_FIRMWARE_OFFSET))
 
 #define OS_SPECIFICS                ((OsSpecifics*)(MEM_BASE + 0x1500))
 
