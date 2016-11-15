@@ -161,17 +161,19 @@ bool Application::procUI(void)
     {
     case PROCUI_STATUS_EXITING:
     {
+        log_printf("PROCUI_STATUS_EXITING\n");
         exitCode = EXIT_SUCCESS;
         exitApplication = true;
         break;
     }
     case PROCUI_STATUS_RELEASE_FOREGROUND:
     {
+        log_printf("PROCUI_STATUS_RELEASE_FOREGROUND\n");
         if(video != NULL)
         {
             // we can turn of the screen but we don't need to and it will display the last image
-            //video->tvEnable(false);
-            //video->drcEnable(false);
+            video->tvEnable(true);
+            video->drcEnable(true);
 
             log_printf("delete fontSystem\n");
             delete fontSystem;
@@ -185,6 +187,10 @@ bool Application::procUI(void)
             memoryRelease();
             ProcUIDrawDoneRelease();
         }
+        else
+        {
+            ProcUIDrawDoneRelease();
+        }
         break;
     }
     case PROCUI_STATUS_IN_FOREGROUND:
@@ -193,6 +199,7 @@ bool Application::procUI(void)
         {
             if(video == NULL)
             {
+                log_printf("PROCUI_STATUS_IN_FOREGROUND\n");
                 log_printf("initialze memory\n");
                 memoryInitialize();
 
@@ -240,9 +247,6 @@ void Application::executeThread(void)
         {
             if(controller[i]->update(video->getTvWidth(), video->getTvHeight()) == false)
                 continue;
-
-            if(controller[i]->data.buttons_d & VPAD_BUTTON_HOME)
-                exitApplication = true;
 
             //! update controller states
             mainWindow->update(controller[i]);

@@ -15,3 +15,9 @@
 /*.rpx
 /sd_loader/sd_loader.h
 /sd_loader/*.bin
+/tmp
+/install_channel
+/output
+/encryptKeyWith
+/NUSPacker.jar
+/fst.bin

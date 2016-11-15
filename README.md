@@ -30,7 +30,7 @@ The apps that will be listed are should be in the following path /wiiu/apps/home
 
 #### Building the Homebrew Launcher
 
-To build the main application devkitPPC is required as well as some additionally libraries. If not yet done export the path of devkitPPC and devkitPro to the evironment variables DEVKITPRO and DEVKITPPC. Additionally you will need to include the [libogc](https://github.com/dimok789/homebrew_launcher/releases/download/v1.0/libogc.7z) and [portlibs](https://github.com/dimok789/homebrew_launcher/releases/download/v1.0/portlibs.7z) packages in your devkitPro path.
+To build the main application devkitPPC is required as well as some additionally libraries. If not yet done export the path of devkitPPC and devkitPro to the evironment variables DEVKITPRO and DEVKITPPC. Additionally you will need to include the [portlibs](https://github.com/dimok789/homebrew_launcher/releases/download/v1.3/portlibs.zip) packages in your devkitPro path.
 
 
 All remaining is to enter the main application path and enter "make". You should get a homebrew_launcher.elf and a homebrew__launcher_dbg.elf in the main path.
@@ -59,3 +59,15 @@ Here is a XML example:
 #### Icon PNG
 The icon.png has to be of the resolution 256 x 96 and can be placed in the same path as the homebrew ELF file. This file is optional and shows an icon for the homebrew inside the homebrew launcher.
 
+### Credits
+* Dimok
+* many contributors with their pull requests
+
+##### WUT RPX toolchain which is used to build RPX version of HBL
+* exjam
+* shinyquagsire23
+* several more contributors
+
+##### HBL channel artwork / boot sound and video
+* cathor
+* Maschell
