@@ -5,6 +5,7 @@
 #include "dynamic_libs/padscore_functions.h"
 #include "common/common.h"
 #include "kernel/gx2sploit.h"
+#include "menu/HomebrewMemory.h"
 
 /* Entry point */
 extern "C" int Menu_Main(void)
@@ -27,6 +28,9 @@ extern "C" int Menu_Main(void)
 
     InitPadScoreFunctionPointers();
     log_printf("Function exports loaded\n");
+
+    //! initialize homebrew memory layout
+    HomebrewInitMemory();
 
     //!*******************************************************************
     //!                    Enter main application                        *
