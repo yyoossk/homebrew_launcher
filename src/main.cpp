@@ -1,3 +1,4 @@
+#include <nsysnet/socket.h>
 #include "Application.h"
 #include "system/memory.h"
 #include "utils/logger.h"
@@ -13,6 +14,7 @@ extern "C" int Menu_Main(void)
     //!*******************************************************************
     //!                   Initialize function pointers                   *
     //!*******************************************************************
+    socket_lib_init();
     //! do OS (for acquire) and sockets first so we got logging
     log_init("192.168.178.3");
 
