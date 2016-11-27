@@ -29,7 +29,7 @@ TcpReceiver::~TcpReceiver()
 {
     exitRequested = true;
 
-    if(serverSocket > 0)
+    if(serverSocket >= 0)
     {
         shutdown(serverSocket, SHUT_RDWR);
     }
