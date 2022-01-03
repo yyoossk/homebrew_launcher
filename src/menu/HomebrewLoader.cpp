@@ -26,12 +26,12 @@ int HomebrewLoader::loadToMemory()
     if(filepath.empty())
         return INVALID_INPUT;
 
-    DEBUG_FUNCTION_LINE("Loading file %s\n", filepath.c_str());
+    DEBUG_FUNCTION_LINE("ファイルの読み込み %s\n", filepath.c_str());
 
     CFile file(filepath, CFile::ReadOnly);
     if(!file.isOpen())
     {
-        progressWindow.setTitle(StringTools::strfmt("Failed to open file %s", StringTools::FullpathToFilename(filepath.c_str())));
+        progressWindow.setTitle(StringTools::strfmt("ファイルを開くことができませんでした %s", StringTools::FullpathToFilename(filepath.c_str())));
         os_sleep(1);
         return FILE_OPEN_FAILURE;
     }
@@ -39,12 +39,12 @@ int HomebrewLoader::loadToMemory()
     u32 bytesRead = 0;
     u32 fileSize = file.size();
 
-    progressWindow.setTitle(StringTools::strfmt("Loading file %s", StringTools::FullpathToFilename(filepath.c_str())));
+    progressWindow.setTitle(StringTools::strfmt("ファイルを読み込んでいます %s", StringTools::FullpathToFilename(filepath.c_str())));
 
     unsigned char *buffer = (unsigned char*) memalign(0x40, (fileSize + 0x3F) & ~0x3F);
     if(!buffer)
     {
-        progressWindow.setTitle("Not enough memory");
+        progressWindow.setTitle("メモリーが充分ではありません");
         os_sleep(1);
         return NOT_ENOUGH_MEMORY;
     }
@@ -61,7 +61,7 @@ int HomebrewLoader::loadToMemory()
         int ret = file.read(buffer + bytesRead, blockSize);
         if(ret <= 0)
         {
-            DEBUG_FUNCTION_LINE("Failure on reading file %s\n", filepath.c_str());
+            DEBUG_FUNCTION_LINE("ファイルの読み取りに失敗しました %s\n", filepath.c_str());
             break;
         }
 
@@ -73,8 +73,8 @@ int HomebrewLoader::loadToMemory()
     if(bytesRead != fileSize)
     {
         free(buffer);
-        DEBUG_FUNCTION_LINE("File loading not finished for file %s, finished %i of %i bytes\n", filepath.c_str(), bytesRead, fileSize);
-        progressWindow.setTitle("File read failure");
+        DEBUG_FUNCTION_LINE("ファイルの読み込みが完了していません %s, 終了 %i of %i バイト\n", filepath.c_str(), bytesRead, fileSize);
+        progressWindow.setTitle("ファイル読み込み失敗");
         os_sleep(1);
         return FILE_READ_ERROR;
     }
@@ -87,7 +87,7 @@ int HomebrewLoader::loadToMemory()
 
     if(ret < 0)
     {
-        progressWindow.setTitle("Not enough memory");
+        progressWindow.setTitle("メモリ不足");
         os_sleep(1);
         return NOT_ENOUGH_MEMORY;
     }
